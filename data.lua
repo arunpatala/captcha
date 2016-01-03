@@ -1,0 +1,86 @@
+require 'csvigo';
+require 'image';
+
+local data = {}
+
+
+function data.getHash()
+    local hash = {}
+    for i=string.byte('0') ,string.byte('9') do
+        table.insert(hash,string.char(i))
+    end
+    for i=string.byte('a') ,string.byte('z')  do
+        table.insert(hash,string.char(i))
+    end
+    return hash
+end
+
+
+function data.getMap()
+    local hash = data.getHash()
+    local map = {}
+    for k,v in ipairs(hash) do
+        map[v] = k
+    end
+    return map
+end
+
+
+function data.loadY(dir)
+    local csv = csvigo.load{path = dir .. 'ans.txt', mode = 'raw'}
+    local Ystr = {}
+    for i=1,#csv do
+        table.insert(Ystr,csv[i][1])
+    end
+    local N = #Ystr
+    local d = #Ystr[1]
+    local Y = torch.zeros(N,d)
+    local map = data.getMap()
+    for i=1,N do
+        for j=1,d do
+            local c = string.sub(Ystr[i],j,j)
+            Y[i][j] = map[c]
+        end
+    end
+    return Y
+end
+
+function data.loadX(dir,N,dH,dW)
+    local dH = dH or 50
+    local dW = dW or 200
+    local function readX(dir,i,b)
+        local X = torch.zeros(b,dH,dW)
+        for j=i,i+b-1 do
+            X[j] = image.load(dir ..''.. j ..'.png')[2]
+        end
+        return X
+    end
+    return readX(dir,1,N) 
+end
+
+function data.storeXY(dir,dH,dW)
+    local Y = data.loadY(dir)
+    local X = data.loadX(dir,#Y,dH,dW)
+    torch.save(dir .. '/data.t7',{X=X,Y=Y})
+end
+
+
+function data.loadXY(dir)
+    local d = torch.load(dir .. '/data.t7')
+    return d.X,d.Y
+end
+
+
+function data.split(X,Y,Nv)
+    local N = X:size(1)
+    local Nv = Nv or N/5
+    local I = torch.randperm(N):long()
+    local It = I[{{1,N-Nv}}]
+    local Iv = I[{{N-Nv+1,N}}]
+    local Xt,Yt = X:index(1,It),Y:index(1,It)
+    local Xv,Yv = X:index(1,Iv),Y:index(1,Iv)
+    return Xt,Yt,Xv,Yv
+end
+
+
+return data
