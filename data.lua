@@ -60,7 +60,7 @@ end
 
 function data.storeXY(dir,dH,dW)
     local Y = data.loadY(dir)
-    local X = data.loadX(dir,#Y,dH,dW)
+    local X = data.loadX(dir,Y:size(1),dH,dW)
     torch.save(dir .. '/data.t7',{X=X,Y=Y})
 end
 
