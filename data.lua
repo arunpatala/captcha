@@ -6,6 +6,7 @@ local data = {}
 
 function data.getHash()
     local hash = {}
+    table.insert(hash, '_')
     for i=string.byte('0') ,string.byte('9') do
         table.insert(hash,string.char(i))
     end
@@ -80,6 +81,25 @@ function data.split(X,Y,Nv)
     local Xt,Yt = X:index(1,It),Y:index(1,It)
     local Xv,Yv = X:index(1,Iv),Y:index(1,Iv)
     return Xt,Yt,Xv,Yv
+end
+
+function data.convert1(Y1)
+    local N = Y1:nElement()
+    local Y2 = torch.ones(7)
+    local j = 1
+    for i=1,7 do
+        if(Y1[i]~=1) then
+            Y2[j] = Y1[i]
+            j = j + 1
+        end
+    end
+    return Y2
+end
+
+function data.convert(Y)
+    for i=1,Y:size(1) do
+        Y[i] = data.convert1(Y[i])
+    end
 end
 
 

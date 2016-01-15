@@ -28,6 +28,17 @@ function rutil.getNetCt(net,bs,rho,hs,cls)
     return rnn,criterion
 end
 
+function rutil.kfacc(outputs,targets)
+    local Y,y = nil,nil;
+    local N = outputs[1]:size(1)
+    local C = outputs[1]:size(2)
+    for k=1,#outputs do 
+        Y = Y and torch.cat(Y,outputs[k]:reshape(N,1,C),2) or outputs[k]:reshape(N,1,C)
+        y = y and torch.cat(y,targets[k]:reshape(N,1),2) or targets[k]:reshape(N,1)
+    end
+    local t,idx = Y:max(3)
+    return idx:squeeze():eq(y):sum(2):eq(#outputs):sum()
+end
 
 
 function rutil.facc(outputs,targets)
@@ -42,7 +53,7 @@ function rutil.facc(outputs,targets)
     return acc,acci
 end
 
-function rutil.valid(rnn,Xv,Yv,batchSize,tnet)
+function rutil.valid(rnn,Xv,Yv,batchSize,tnet,f)
     local batchSize = bs or 16
     local acc = 0
     local acci = {}
@@ -56,17 +67,17 @@ function rutil.valid(rnn,Xv,Yv,batchSize,tnet)
         local inputs = Xb
         local targets = tnet:forward(Yb)
         local outputs = rnn:forward(inputs)
-        local aa,ai = rutil.facc(outputs,targets)
+        local aa,ai = f(outputs,targets) or rutil.facc(outputs,targets)
         for k=1,#ai do
             acci[k] = (acci[k] or 0) + ai[k]
         end
-        acc = acc + aa
+        acc = acc + aa/#ai
         rnn:forget()
     end
     for k=1,#acci do
             acci[k] = (acci[k] or 0) * 100/(Nv)
     end
-    return (acc*100)/(5*Nv),acci
+    return (acc*100)/Nv,acci
 end
 
 
@@ -90,17 +101,17 @@ function rutil.train(rnn,criterion,Xt,Yt,Xv,Yv,T,batchSize,tnet,lr)
             local inputs = Xb
             local targets = tnet:forward(Yb)
             local outputs = rnn:forward(inputs)
-            loss = loss + criterion:forward(outputs, targets)
+            loss = loss + criterion:forward(outputs, targets)/#targets
             local gradOutputs = criterion:backward(outputs,targets)
-            acc = acc + rutil.facc(outputs,targets)
+            acc = acc + rutil.facc(outputs,targets)/#targets
             rnn:backward(inputs,gradOutputs)
             rnn:backwardThroughTime()
             rnn:updateParameters(lr or 0.001)
             rnn:zeroGradParameters()
             rnn:forget()
         end
-        print('loss',loss/5)
-        print('train',100*acc/(Nt*5))
+        print('loss',loss)
+        print('train',100*acc/Nt)
         local v,acc = rutil.valid(rnn,Xv,Yv,batchSize,tnet)
         if(v>maxv) then maxv = v end
         print('v',v,'maxv',maxv)    
